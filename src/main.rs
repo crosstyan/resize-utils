@@ -1,9 +1,17 @@
 use clap::Parser;
 use indicatif::ParallelProgressIterator;
-use magick_rust::{MagickWand, PixelWand};
+use magick_rust::{MagickWand, PixelWand, magick_wand_genesis};
 use rayon::prelude::*;
-use walkdir::{DirEntry, WalkDir};
+use std::io;
 use std::path::{Path, PathBuf};
+use walkdir::{DirEntry, WalkDir};
+use std::sync::Once;
+
+// Used to make sure MagickWand is initialized exactly once. Note that we
+// do not bother shutting down, we simply exit when we're done.
+// I should have read the documentation more carefully
+
+static START: Once = Once::new();
 
 fn is_hidden(entry: &DirEntry) -> bool {
     entry
@@ -74,6 +82,7 @@ fn new_size(old_size: (usize, usize), new_l: usize, preserve_long_side: bool) ->
 }
 
 // How the rayon works for reference
+// https://users.rust-lang.org/t/without-a-single-line-of-unsafe-code-i-am-getting-segfault-and-i-cant-figure-out-why-since-i-cant-stack-trace/40017/6
 // https://github.com/rayon-rs/rayon/blob/master/FAQ.md
 fn main() {
     let args = Args::parse();
@@ -88,6 +97,11 @@ fn main() {
     let quality = args.quality;
     let length = args.length;
     let preserve_long_side = args.preserve_long_side;
+    // call once is not necessary I guess
+    // still doing it anyway
+    START.call_once(|| {
+        magick_wand_genesis();
+    });
     walker
         .par_iter()
         .progress_count(walker.len() as u64)
@@ -114,5 +128,9 @@ fn main() {
             wand.set_image_format("jpg").unwrap();
             let new_path = entry.path().with_extension("jpg");
             wand.write_image(new_path.to_str().unwrap()).unwrap();
+            // remove the original file
+            if entry.path().extension().unwrap() != "jpg" {
+                std::fs::remove_file(entry.path()).unwrap();
+            }
         });
 }
