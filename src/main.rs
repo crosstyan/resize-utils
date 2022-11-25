@@ -7,10 +7,9 @@ use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 use std::sync::Once;
 
-// Used to make sure MagickWand is initialized exactly once. Note that we
-// do not bother shutting down, we simply exit when we're done.
+// Used to make sure MagickWand is initialized exactly once. 
 // I should have read the documentation more carefully
-
+// https://github.com/nlfiedler/magick-rust#example-usage
 static START: Once = Once::new();
 
 fn is_hidden(entry: &DirEntry) -> bool {
@@ -25,15 +24,9 @@ fn is_picture(entry: &DirEntry) -> bool {
     let possible_suffixes = vec![".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"];
     let res = possible_suffixes
         .iter()
-        .map(|s| entry.path().to_str().unwrap().ends_with(s))
+        .map(|s| entry.path().ends_with(s))
         .any(|x| x);
     res
-}
-
-// should remove all the ng files
-// I will handle them later
-fn is_gif(entry: &DirEntry) -> bool {
-    entry.path().to_str().unwrap().ends_with(".gif")
 }
 
 #[derive(Parser, Debug)]
@@ -88,7 +81,6 @@ fn new_size(old_size: (usize, usize), new_l: usize, preserve_long_side: bool) ->
 }
 
 // How the rayon works for reference
-// https://users.rust-lang.org/t/without-a-single-line-of-unsafe-code-i-am-getting-segfault-and-i-cant-figure-out-why-since-i-cant-stack-trace/40017/6
 // https://github.com/rayon-rs/rayon/blob/master/FAQ.md
 fn main() {
     let args = Args::parse();
