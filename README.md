@@ -16,6 +16,12 @@ Options:
   -V, --version                Print version information
 ```
 
+You could also play with [`resize.py`](resize.py). 
+
+## Troubleshooting
+
+[Install ImageMagick on Mac](https://docs.wand-py.org/en/0.6.10/guide/install.html#install-imagemagick-on-mac). set `export MAGICK_HOME=/opt/homebrew`.
+
 ## TODO
 
 - [ ] choose other format
