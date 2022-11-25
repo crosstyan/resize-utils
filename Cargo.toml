@@ -11,3 +11,4 @@ magick_rust = "0.16.0"
 walkdir = "2.3.2"
 anyhow = "1.0.51"
 rayon = "1.6.0"
+indicatif = {version = "0.17.2", features = ["rayon"]}
