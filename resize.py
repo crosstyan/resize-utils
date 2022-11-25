@@ -19,7 +19,6 @@ parser = argparse.ArgumentParser(description='Resize images in a folder')
 parser.add_argument('--path', type=str, default='.', help='path to the folder containing images')
 parser.add_argument('--ng-path', type=str, default="", help='path to the folder containing no good images')
 
-
 # https://stackoverflow.com/questions/4568580/python-glob-multiple-filetypes
 extensions = ("jpg", "png", "gif", "jpeg", "bmp", "webp")
 
@@ -49,12 +48,12 @@ def get_new_size(old_size: tuple[int, int], new_l: int, preserve_long=True) -> t
 
 
 # https://stackoverflow.com/questions/27826854/python-wand-convert-pdf-to-png-disable-transparent-alpha-channel
-def handle_pic(pic_path:str):
+def handle_pic(pic_path:str, expected_l:int, ng_path:str):
   pic = Path(pic_path)
   if pic.suffix == ".gif":
-    dump_path = ng_dump.joinpath(pic.name)
+    dump_path = ng_path.joinpath(pic.name)
     try:
-      if ng_dump is not None:
+      if ng_path is not None:
         tqdm.write("Skipping gif file {}. Dump it to somewhere else.".format(pic))
         shutil.move(pic, dump_path)
     except:
@@ -66,8 +65,7 @@ def handle_pic(pic_path:str):
     img.alpha_channel = 'remove'
     img.format = 'jpg'
     # resize while preserve aspect ratio
-    expected_size = 768
-    w, h = get_new_size(img.size, expected_size)
+    w, h = get_new_size(img.size, expected_l)
     img.resize(w, h, filter='lanczos')
     img.compression_quality = 90
     img.save(filename=pic.with_suffix('.jpg'))
@@ -75,6 +73,10 @@ def handle_pic(pic_path:str):
   if pic.suffix != '.jpg':
     os.remove(pic)
 
+global ng_dump
+ng_dump = None
+def _handle_pic(pic_path:str):
+  handle_pic(pic_path, 768, ng_dump)
 
 if __name__ == "__main__":
   # https://www.pythonsheets.com/notes/python-concurrency.html
@@ -101,4 +103,4 @@ if __name__ == "__main__":
   print("Process {}".format(base_dir))
   print("Image count {}".format(len(grabbed)))
   u_count = cpu_count()
-  process_map(handle_pic, grabbed, max_workers=u_count)
+  process_map(_handle_pic, grabbed, max_workers=u_count)
