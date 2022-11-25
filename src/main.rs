@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, ArgAction};
 use indicatif::ParallelProgressIterator;
 use magick_rust::{MagickWand, PixelWand, magick_wand_genesis};
 use rayon::prelude::*;
@@ -42,15 +42,21 @@ struct Args {
     /// The directory to search for pictures
     #[arg(short, long)]
     input_dir: String,
+    /// JPEG compression quality
     #[arg(short, long, default_value_t = 90)]
     quality: usize,
+    /// The length you desire
     #[arg(short, long, default_value_t = 768)]
     length: usize,
-    #[arg(long, default_value_t = true)]
-    preserve_long_side: bool, // #[arg(short, long)]
-                              // output_dir: String,
-                              // #[arg(long, action=clap::ArgAction::SetTrue)]
-                              // inplace: bool,
+    /// flag to indicate whether preserve the long side.
+    /// for example, for images with width > height, if this flag is set
+    /// i.e. not preserve the long side, the width will be the exact length you set.
+    #[arg(long, action=ArgAction::SetTrue, default_value_t = false)]
+    no_preserve_long_side: bool, 
+    // #[arg(short, long)]
+    // output_dir: String,
+    // #[arg(long, action=clap::ArgAction::SetTrue)]
+    // inplace: bool,
 }
 
 fn new_size(old_size: (usize, usize), new_l: usize, preserve_long_side: bool) -> (usize, usize) {
@@ -96,7 +102,7 @@ fn main() {
         .collect();
     let quality = args.quality;
     let length = args.length;
-    let preserve_long_side = args.preserve_long_side;
+    let is_not_preserve_long_side = args.no_preserve_long_side;
     // call once is not necessary I guess
     // still doing it anyway
     START.call_once(|| {
@@ -121,7 +127,7 @@ fn main() {
                 .unwrap();
             let w = wand.get_image_width();
             let h = wand.get_image_height();
-            let (new_w, new_h) = new_size((w, h), length, preserve_long_side);
+            let (new_w, new_h) = new_size((w, h), length, !is_not_preserve_long_side);
             pub const FilterType_LanczosFilter: u32 = 22;
             wand.resize_image(new_w, new_h, FilterType_LanczosFilter);
             wand.set_compression_quality(quality as usize).unwrap();
