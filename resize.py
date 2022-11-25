@@ -18,7 +18,6 @@ from concurrent.futures import ProcessPoolExecutor
 parser = argparse.ArgumentParser(description='Resize images in a folder')
 parser.add_argument('--path', type=str, default='.', help='path to the folder containing images')
 parser.add_argument('--ng-path', type=str, default="", help='path to the folder containing no good images')
-args = parser.parse_args()
 
 
 # https://stackoverflow.com/questions/4568580/python-glob-multiple-filetypes
@@ -80,6 +79,7 @@ def handle_pic(pic_path:str):
 if __name__ == "__main__":
   # https://www.pythonsheets.com/notes/python-concurrency.html
   # pwd = Path(os.path.dirname(os.path.realpath(__file__))) 
+  args = parser.parse_args()
   base_dir = Path(args.path)
   base_dir_recursive = base_dir.joinpath("./**")
   ng_dump = base_dir.joinpath("..", "ng")
