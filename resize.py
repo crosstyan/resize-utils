@@ -25,7 +25,7 @@ def check_is_need_modify(img:Image, expected_l:int):
   pic_format = img.format.lower()
   format_criteria = pic_format != 'jpeg' or pic_format != "jpg"
   w, h = img.size
-  size_criteria: bool = (w > expected_l) or (h > expected_l)
+  size_criteria: bool = (w >= expected_l) and (h >= expected_l)
   # modify image if it's not jpeg or it's size is larger than expected_l
   return format_criteria or size_criteria
 

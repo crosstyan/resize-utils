@@ -30,10 +30,12 @@ fn is_hidden(entry: &DirEntry) -> bool {
 }
 
 fn is_picture(entry: &DirEntry) -> bool {
-    let possible_suffixes = vec![".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"];
+    let possible_suffixes = vec!["jpg", "jpeg", "png", "bmp", "tiff", "webp"];
     let res = possible_suffixes
         .iter()
-        .map(|s| entry.path().ends_with(s))
+        .map(|s| {
+            let empty = std::ffi::OsStr::new("");
+            entry.path().extension().unwrap_or(&empty) == *s})
         .any(|x| x);
     res
 }
@@ -109,6 +111,7 @@ fn main() {
     START.call_once(|| {
         magick_wand_genesis();
     });
+    println!("length {}", walker.len());
     walker
         .par_iter()
         .progress_count(walker.len() as u64)
@@ -134,7 +137,7 @@ fn main() {
                         pub const FilterType_LanczosFilter: u32 = 22;
                         wand.resize_image(new_w, new_h, FilterType_LanczosFilter);
                         wand.set_compression_quality(quality as usize).unwrap();
-                        wand.set_image_format("jpg").unwrap();
+                        wand.set_image_format("jpeg").unwrap();
                         let new_path = entry.path().with_extension("jpg");
                         wand.write_image(new_path.to_str().unwrap()).unwrap();
                         // remove the original file
@@ -143,8 +146,8 @@ fn main() {
                         }
                     }
                 },
-                Err() => {
-                    print!("Error reading image: {}", entry.path().display());
+                Err(_) => {
+                    println!("Error reading image: {}", entry.path().display());
                 }
             }
         });
