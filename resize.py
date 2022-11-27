@@ -83,7 +83,8 @@ def handle_pic(pic_path:str, expected_l:int, ng_path:str):
       if pic.suffix != '.jpg':
         os.remove(pic)
     else:
-      print("Skip {}".format(pic))
+      pass
+      # print("Skip {}".format(pic))
 
 global ng_dump
 ng_dump = None
