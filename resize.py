@@ -17,10 +17,17 @@ from concurrent.futures import ProcessPoolExecutor
 
 parser = argparse.ArgumentParser(description='Resize images in a folder')
 parser.add_argument('--path', type=str, default='.', help='path to the folder containing images')
-parser.add_argument('--ng-path', type=str, default="", help='path to the folder containing no good images')
 
 # https://stackoverflow.com/questions/4568580/python-glob-multiple-filetypes
 extensions = ("jpg", "png", "gif", "jpeg", "bmp", "webp")
+
+def check_is_need_modify(img:Image, expected_l:int):
+  pic_format = img.format.lower()
+  format_criteria = pic_format != 'jpeg' or pic_format != "jpg"
+  w, h = img.size
+  size_criteria: bool = (w > expected_l) or (h > expected_l)
+  # modify image if it's not jpeg or it's size is larger than expected_l
+  return format_criteria or size_criteria
 
 def get_new_size(old_size: tuple[int, int], new_l: int, preserve_long=True) -> tuple[int, int]:
   old_w, old_h = old_size
@@ -51,9 +58,9 @@ def get_new_size(old_size: tuple[int, int], new_l: int, preserve_long=True) -> t
 def handle_pic(pic_path:str, expected_l:int, ng_path:str):
   pic = Path(pic_path)
   if pic.suffix == ".gif":
-    dump_path = ng_path.joinpath(pic.name)
     try:
       if ng_path is not None:
+        dump_path = ng_path.joinpath(pic.name)
         tqdm.write("Skipping gif file {}. Dump it to somewhere else.".format(pic))
         shutil.move(pic, dump_path)
     except:
@@ -61,17 +68,18 @@ def handle_pic(pic_path:str, expected_l:int, ng_path:str):
       return None
   with Image(filename=pic) as img:
     # if you only want to remove the alpha channel and set the background to white
-    img.background_color = Color('white')
-    img.alpha_channel = 'remove'
-    img.format = 'jpg'
-    # resize while preserve aspect ratio
-    w, h = get_new_size(img.size, expected_l)
-    img.resize(w, h, filter='lanczos')
-    img.compression_quality = 90
-    img.save(filename=pic.with_suffix('.jpg'))
-    tqdm.write("Processd {}".format(pic))
-  if pic.suffix != '.jpg':
-    os.remove(pic)
+    if check_is_need_modify(img, expected_l):
+      img.background_color = Color('white')
+      img.alpha_channel = 'remove'
+      img.format = 'jpg'
+      # resize while preserve aspect ratio
+      w, h = get_new_size(img.size, expected_l)
+      img.resize(w, h, filter='lanczos')
+      img.compression_quality = 90
+      img.save(filename=pic.with_suffix('.jpg'))
+      # tqdm.write("Processd {}".format(pic))
+      if pic.suffix != '.jpg':
+        os.remove(pic)
 
 global ng_dump
 ng_dump = None
@@ -85,9 +93,6 @@ if __name__ == "__main__":
   base_dir = Path(args.path)
   base_dir_recursive = base_dir.joinpath("./**")
   ng_dump = base_dir.joinpath("..", "ng")
-    
-  if args.ng_path != "":
-    ng_dump = Path(args.ng_path)
 
   if not ng_dump.exists():
     # create folder

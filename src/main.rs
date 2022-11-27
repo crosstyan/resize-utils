@@ -2,8 +2,6 @@ use clap::{Parser, ArgAction};
 use indicatif::ParallelProgressIterator;
 use magick_rust::{MagickWand, PixelWand, magick_wand_genesis};
 use rayon::prelude::*;
-use std::io;
-use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 use std::sync::Once;
 
@@ -11,6 +9,17 @@ use std::sync::Once;
 // I should have read the documentation more carefully
 // https://github.com/nlfiedler/magick-rust#example-usage
 static START: Once = Once::new();
+
+
+/// should not handle the image if it is already small enough and it is a jpeg
+fn check_is_need_modify(img: &MagickWand, expected_l: usize) -> bool {
+    let pic_format = img.get_image_format().unwrap().to_lowercase();
+    let format_criteria = pic_format != "jpeg" || pic_format != "jpg";
+    let w = img.get_image_width();
+    let h = img.get_image_height();
+    let size_criteria = w > expected_l || h > expected_l;
+    format_criteria || size_criteria
+}
 
 fn is_hidden(entry: &DirEntry) -> bool {
     entry
@@ -106,29 +115,37 @@ fn main() {
         .for_each(|entry| {
             // println!("Found picture: {}", entry.path().display());
             let mut wand = MagickWand::new();
-            let mut white = PixelWand::new();
-            white.set_color("white").unwrap();
-            wand.read_image(entry.path().to_str().unwrap()).unwrap();
-            wand.set_background_color(&white).unwrap();
-            // https://imagemagick.org/api/MagickCore/image_8h.html
-            // RemoveAlphaChannel
-            // The author of bindings didn't expose this enum
-            // I'll fix this later
-            pub const AlphaChannelOption_RemoveAlphaChannel: u32 = 12;
-            wand.set_image_alpha_channel(AlphaChannelOption_RemoveAlphaChannel)
-                .unwrap();
-            let w = wand.get_image_width();
-            let h = wand.get_image_height();
-            let (new_w, new_h) = new_size((w, h), length, !is_not_preserve_long_side);
-            pub const FilterType_LanczosFilter: u32 = 22;
-            wand.resize_image(new_w, new_h, FilterType_LanczosFilter);
-            wand.set_compression_quality(quality as usize).unwrap();
-            wand.set_image_format("jpg").unwrap();
-            let new_path = entry.path().with_extension("jpg");
-            wand.write_image(new_path.to_str().unwrap()).unwrap();
-            // remove the original file
-            if entry.path().extension().unwrap() != "jpg" {
-                std::fs::remove_file(entry.path()).unwrap();
+            match wand.read_image(entry.path().to_str().unwrap()){
+                Ok(_) => {
+                    if check_is_need_modify(&wand, length){
+                        let mut white = PixelWand::new();
+                        white.set_color("white").unwrap();
+                        wand.set_background_color(&white).unwrap();
+                        // https://imagemagick.org/api/MagickCore/image_8h.html
+                        // RemoveAlphaChannel
+                        // The author of bindings didn't expose this enum
+                        // I'll fix this later
+                        pub const AlphaChannelOption_RemoveAlphaChannel: u32 = 12;
+                        wand.set_image_alpha_channel(AlphaChannelOption_RemoveAlphaChannel)
+                            .unwrap();
+                        let w = wand.get_image_width();
+                        let h = wand.get_image_height();
+                        let (new_w, new_h) = new_size((w, h), length, !is_not_preserve_long_side);
+                        pub const FilterType_LanczosFilter: u32 = 22;
+                        wand.resize_image(new_w, new_h, FilterType_LanczosFilter);
+                        wand.set_compression_quality(quality as usize).unwrap();
+                        wand.set_image_format("jpg").unwrap();
+                        let new_path = entry.path().with_extension("jpg");
+                        wand.write_image(new_path.to_str().unwrap()).unwrap();
+                        // remove the original file
+                        if entry.path().extension().unwrap() != "jpg" {
+                            std::fs::remove_file(entry.path()).unwrap();
+                        }
+                    }
+                },
+                Err() => {
+                    print!("Error reading image: {}", entry.path().display());
+                }
             }
         });
 }
