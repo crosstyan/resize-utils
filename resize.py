@@ -24,9 +24,11 @@ extensions = ("jpg", "png", "gif", "jpeg", "bmp", "webp")
 def check_is_need_modify(img:Image, expected_l:int):
   pic_format = img.format.lower()
   format_criteria = pic_format == 'jpeg' or pic_format == "jpg"
+  # print("format_criteria: {}, {}".format(format_criteria, pic_format))
   w, h = img.size
-  size_criteria: bool = (w >= expected_l) and (h >= expected_l)
+  size_criteria: bool = (w > expected_l) and (h > expected_l)
   # modify image if it's not jpeg or it's size is larger than expected_l
+  # print("size_criteria: {}, {}, {}".format(size_criteria, w, h))
   return (not format_criteria) or size_criteria
 
 def get_new_size(old_size: tuple[int, int], new_l: int, preserve_long=True) -> tuple[int, int]:
@@ -80,6 +82,8 @@ def handle_pic(pic_path:str, expected_l:int, ng_path:str):
       # tqdm.write("Processd {}".format(pic))
       if pic.suffix != '.jpg':
         os.remove(pic)
+    else:
+      print("Skip {}".format(pic))
 
 global ng_dump
 ng_dump = None
@@ -97,9 +101,10 @@ if __name__ == "__main__":
   if not ng_dump.exists():
     # create folder
     # print("Creating no good dump folder at {}".format(ng_dump))
-    # ng_dump.mkdir(parents=True, exist_ok=True)
-    print("skip dump")
-    ng_dump = None
+    ng_dump.mkdir(parents=True, exist_ok=True)
+    # print("skip dump")
+    # ng_dump = None
+    print("make dump {}".format(ng_dump))
 
   grabbed = []
   for ext in extensions:
