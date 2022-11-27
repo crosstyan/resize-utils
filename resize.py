@@ -23,11 +23,11 @@ extensions = ("jpg", "png", "gif", "jpeg", "bmp", "webp")
 
 def check_is_need_modify(img:Image, expected_l:int):
   pic_format = img.format.lower()
-  format_criteria = pic_format != 'jpeg' or pic_format != "jpg"
+  format_criteria = pic_format == 'jpeg' or pic_format == "jpg"
   w, h = img.size
   size_criteria: bool = (w >= expected_l) and (h >= expected_l)
   # modify image if it's not jpeg or it's size is larger than expected_l
-  return format_criteria or size_criteria
+  return (not format_criteria) or size_criteria
 
 def get_new_size(old_size: tuple[int, int], new_l: int, preserve_long=True) -> tuple[int, int]:
   old_w, old_h = old_size

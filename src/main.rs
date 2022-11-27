@@ -14,11 +14,11 @@ static START: Once = Once::new();
 /// should not handle the image if it is already small enough and it is a jpeg
 fn check_is_need_modify(img: &MagickWand, expected_l: usize) -> bool {
     let pic_format = img.get_image_format().unwrap().to_lowercase();
-    let format_criteria = pic_format != "jpeg" || pic_format != "jpg";
+    let format_criteria = (pic_format == "jpeg") || (pic_format == "jpg");
     let w = img.get_image_width();
     let h = img.get_image_height();
-    let size_criteria = w > expected_l || h > expected_l;
-    format_criteria || size_criteria
+    let size_criteria = w > expected_l && h > expected_l;
+    !format_criteria || size_criteria
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {
@@ -144,6 +144,8 @@ fn main() {
                         if entry.path().extension().unwrap() != "jpg" {
                             std::fs::remove_file(entry.path()).unwrap();
                         }
+                    } else {
+                        // println!("skip {}", entry.path().display());
                     }
                 },
                 Err(_) => {
