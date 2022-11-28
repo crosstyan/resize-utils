@@ -25,15 +25,15 @@ fn handle_img(entry: &DirEntry, opt: &HandleImageOptions) -> Result<()> {
         let (new_width, new_height) = new_size((w, h), expcted_len, preserve_long);
         let resized =
             dyn_img.resize_exact(new_width, new_height, image::imageops::FilterType::Lanczos3);
-        let buf = resized.as_rgba16().unwrap();
-        let mut bottom = ImageBuffer::from_pixel(new_width, new_height, image::Rgba([255u16, 255u16, 255u16, 255u16]));
-        image::imageops::overlay(&mut bottom, buf, 0, 0);
+        let buf = resized.to_rgba8();
+        let mut bottom = ImageBuffer::from_pixel(new_width, new_height, image::Rgba([255u8, 255u8, 255u8, 255u8]));
+        image::imageops::overlay(&mut bottom, &buf, 0, 0);
         let mut out_path = entry.path().to_path_buf();
         out_path.set_extension("jpg");
         let quality = opt.quality as u8;
         let f = std::fs::File::create(out_path)?;
         let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(f, quality);
-        encoder.encode(bottom.as_bytes(), new_width, new_height, image::ColorType::Rgba16)?;
+        encoder.encode(bottom.as_bytes(), new_width, new_height, image::ColorType::Rgba8)?;
         // bottom.save_with_format(out_path, ImageFormat::Jpeg)?;
     } else {
         return Ok(());
