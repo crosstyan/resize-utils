@@ -16,7 +16,7 @@ from tqdm.contrib.concurrent import process_map
 from concurrent.futures import ProcessPoolExecutor
 
 parser = argparse.ArgumentParser(description='Resize images in a folder')
-parser.add_argument('--path', type=str, default='.', help='path to the folder containing images')
+parser.add_argument('-p','--path', type=str, default='.', help='path to the folder containing images')
 
 # https://stackoverflow.com/questions/4568580/python-glob-multiple-filetypes
 extensions = ("jpg", "png", "gif", "jpeg", "bmp", "webp")

@@ -146,7 +146,7 @@ fn main() -> Result<()> {
         .for_each(|entry| {
             match handle_img(entry, &opt) {
                 Ok(_) => (),
-                Err(e) => println!("error: {}", e),
+                Err(e) => println!("error: {} from {}", e, entry.path().display()),
             }
         });
     return Ok(());
