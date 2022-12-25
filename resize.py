@@ -1,3 +1,4 @@
+import multiprocessing
 from pathlib import Path
 import glob
 import os
@@ -9,17 +10,30 @@ import argparse
 from pprint import pprint
 from tqdm import tqdm
 from psutil import cpu_count
+import shutil
+import dill
+from multiprocessing import Process
 
 # https://stackoverflow.com/questions/67957266/python-tqdm-process-map-append-list-shared-between-processes
 # https://tqdm.github.io/docs/contrib.concurrent/
 from tqdm.contrib.concurrent import process_map
 from concurrent.futures import ProcessPoolExecutor
 
-parser = argparse.ArgumentParser(description='Resize images in a folder')
-parser.add_argument('-p','--path', type=str, default='.', help='path to the folder containing images')
+def get_relate(p: Path, root: Path, new_root: Path):
+    rp = p.relative_to(root)
+    return new_root.joinpath(rp)
+
+def get_parser():
+  parser = argparse.ArgumentParser(description='Resize images in a folder')
+  parser.add_argument('-i', '--src', type=str, help='The source directory', required=True)
+  parser.add_argument('-o', '--dst', type=str,
+                      help='The destination directory', required=True)
+  parser.add_argument('-s', '--size', type=int,
+                      help='The size you want to fuck', default=512)
+  return parser
 
 # https://stackoverflow.com/questions/4568580/python-glob-multiple-filetypes
-extensions = ("jpg", "png", "gif", "jpeg", "bmp", "webp")
+extensions = ("jpg", "png", "jpeg", "bmp", "webp")
 
 def check_is_need_modify(img:Image, expected_l:int):
   pic_format = img.format.lower()
@@ -57,19 +71,21 @@ def get_new_size(old_size: tuple[int, int], new_l: int, preserve_long=True) -> t
 
 
 # https://stackoverflow.com/questions/27826854/python-wand-convert-pdf-to-png-disable-transparent-alpha-channel
-def handle_pic(pic_path:str, expected_l:int, ng_path:str):
-  pic = Path(pic_path)
-  if pic.suffix == ".gif":
-    try:
-      if ng_path is not None:
-        dump_path = ng_path.joinpath(pic.name)
-        tqdm.write("Skipping gif file {}. Dump it to somewhere else.".format(pic))
-        shutil.move(pic, dump_path)
-    except:
-      print("Failed to move gif file to {}".format(dump_path))
-      return None
+def handle_pic(pic_path:Path, root:Path, new_root:Path, expected_l:int):
+  pic = pic_path
+  save_path = get_relate(pic, root, new_root)
+  # skip
+  # I assume it already be handled
+  if save_path.with_suffix('.jpg').exists():
+    return
   with Image(filename=pic) as img:
     # if you only want to remove the alpha channel and set the background to white
+    if not save_path.parent.exists():
+      save_path.parent.mkdir(parents=True)
+    txt = pic.with_suffix(".txt")
+    if txt.exists():
+      dst_txt = get_relate(txt, root, new_root)
+      shutil.copy(txt, dst_txt)
     if check_is_need_modify(img, expected_l):
       img.background_color = Color('white')
       img.alpha_channel = 'remove'
@@ -77,41 +93,45 @@ def handle_pic(pic_path:str, expected_l:int, ng_path:str):
       # resize while preserve aspect ratio
       w, h = get_new_size(img.size, expected_l)
       img.resize(w, h, filter='lanczos')
-      img.compression_quality = 90
-      img.save(filename=pic.with_suffix('.jpg'))
+      img.compression_quality = 99
+      img.save(filename=save_path.with_suffix('.jpg'))
       # tqdm.write("Processd {}".format(pic))
-      if pic.suffix != '.jpg':
-        os.remove(pic)
+      # if pic.suffix != '.jpg':
+      #   os.remove(pic)
     else:
-      pass
+      img.save(filename=save_path.with_suffix('.jpg'))
       # print("Skip {}".format(pic))
 
-global ng_dump
-ng_dump = None
-def _handle_pic(pic_path:str):
-  handle_pic(pic_path, 768, ng_dump)
-
-if __name__ == "__main__":
+def main():
+  # https://stackoverflow.com/questions/72766345/attributeerror-cant-pickle-local-object-in-multiprocessing
+  # https://stackoverflow.com/questions/46021456/configure-multiprocessing-in-python-to-use-forkserver
+  # multiprocessing.set_start_method("fork", force=True) 
+  # https://deecode.net/?p=975
   # https://www.pythonsheets.com/notes/python-concurrency.html
   # pwd = Path(os.path.dirname(os.path.realpath(__file__))) 
+  parser = get_parser()
   args = parser.parse_args()
-  base_dir = Path(args.path)
-  base_dir_recursive = base_dir.joinpath("./**")
-  ng_dump = base_dir.joinpath("..", "ng")
-
-  if not ng_dump.exists():
-    # create folder
-    # print("Creating no good dump folder at {}".format(ng_dump))
-    ng_dump.mkdir(parents=True, exist_ok=True)
-    # print("skip dump")
-    # ng_dump = None
-    print("make dump {}".format(ng_dump))
+  src = Path(args.src) 
+  dst = Path(args.dst)
 
   grabbed = []
   for ext in extensions:
-    grabbed.extend(glob.glob(os.path.join(base_dir_recursive, f"*.{ext}"), recursive=True))
+    grabbed.extend(src.rglob("*.{}".format(ext)))
 
-  print("Process {}".format(base_dir))
+  def _handle_pic(pic_path:str):
+    handle_pic(pic_path, src, dst, args.size)
+
+  print("Process {}".format(src))
   print("Image count {}".format(len(grabbed)))
   u_count = cpu_count()
-  process_map(_handle_pic, grabbed, max_workers=u_count)
+  # solve that shit later
+  # process_map(_handle_pic, grabbed, max_workers=u_count)
+  # TODO: handle ctrl + C
+  for p in tqdm(grabbed):
+    try:
+      handle_pic(p, src, dst, args.size)
+    except:
+      tqdm.write("fucked {}".format(p))
+
+if __name__ == "__main__":
+  main()
