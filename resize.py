@@ -130,6 +130,8 @@ def main():
   for p in tqdm(grabbed):
     try:
       handle_pic(p, src, dst, args.size)
+    except KeyboardInterrupt:
+      exit(0)
     except:
       tqdm.write("fucked {}".format(p))
 
